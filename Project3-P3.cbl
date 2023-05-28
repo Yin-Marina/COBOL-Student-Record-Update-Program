@@ -1,0 +1,178 @@
+      ******************************************************************
+      * * Author: Mutao Yin
+      * Date: March 27, 2023
+      * Purpose: Project 3 Program-3
+      * Tectonics: cobc
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PROJECT3-3RD-PROGRAM.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT PROGRAM-FILE
+           ASSIGN TO "..\PROGRAM.TXT"
+           ORGANIZATION IS LINE SEQUENTIAL.
+
+           SELECT INDEXED-STU-FILE
+           ASSIGN TO "..\INDEXEDSTUFILE.DAT"
+           ORGANIZATION IS INDEXED
+           ACCESS MODE IS SEQUENTIAL
+           RECORD KEY IS STUDENT-NUMBER.
+
+           SELECT STUDENT-REPORT-OUT
+           ASSIGN TO "..\STUREPORT.TXT"
+           ORGANIZATION IS LINE SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD PROGRAM-FILE.
+       01 PROGRAM-REC-IN.
+           05 PROGRAM-CODE   PIC X(6).
+           05 PROGRAM-CODE-RED REDEFINES PROGRAM-CODE PIC X(5).
+           05 PROGRAM-NAME   PIC X(20).
+
+      *>   INDEXED-STU-FILE IS THE INPUT FILE
+       FD INDEXED-STU-FILE.
+       01 STUDENT-RECORD.
+           05 STUDENT-NUMBER    PIC 9(6) .
+           05 TUITION-OWED      PIC S9(4)V99.
+           05 STUDENT-NAME      PIC X(40).
+           05 PROGRAM-OF-STUDY  PIC X(5).
+           05 COURSE-CODE1      PIC X(7).
+           05 COURSE-AVERAGE1   PIC 9(3).
+           05 COURSE-CODE2      PIC X(7).
+           05 COURSE-AVERAGE2   PIC 9(3).
+           05 COURSE-CODE3      PIC X(7).
+           05 COURSE-AVERAGE3   PIC 9(3).
+           05 COURSE-CODE4      PIC X(7).
+           05 COURSE-AVERAGE4   PIC 9(3).
+           05 COURSE-CODE5      PIC X(7).
+           05 COURSE-AVERAGE5   PIC 9(3).
+
+      *>   STUDENT-REPORT-OUT IS THE OUTPUT FILE
+       FD  STUDENT-REPORT-OUT.
+       01  STUFILE-RECORD-OUT PIC X(120).
+
+       WORKING-STORAGE SECTION.
+      *>   DEFINE VARIABLES TO BE USED IN THE PROGRAM
+       01  WS-STUDENT-RECORD.
+           05 WS-STUDENT-NAME     PIC X(40).
+           05 FILLER              PIC X(2)   VALUE SPACES.
+           05 WS-STUDENT-AVG      PIC 9(3).
+           05 FILLER              PIC X(4)   VALUE SPACES.
+           05 WS-PROGRAM-NAME     PIC X(20).
+           05 FILLER              PIC X(4)   VALUE SPACES.
+           05 WS-TUITION-OWED     PIC Z,ZZ9.99.
+
+      *>   HEADERS TO BE DISPLAYED AT TOP OF OUT REPORT
+       01 STUDENT-REC-HDR.
+           05  FILLER   PIC X(38)    VALUE "NAME".
+           05  FILLER   PIC X(2)     VALUE SPACES.
+           05  FILLER   PIC X(7)     VALUE "AVERAGE".
+           05  FILLER   PIC X(2)     VALUE SPACES.
+           05  FILLER   PIC X(20)    VALUE "PROGRAM".
+           05  FILLER   PIC X(4)     VALUE SPACES.
+           05  FILLER   PIC X(12)    VALUE "TIUTION OWED".
+
+      *>   DATA DIVISION COMPONENT
+      *>   DECLARING THE STRUCTURE OF THE PROGRAM TABLE AS A COPY MEMBER
+       COPY ".\PROGRAM-TABLE.TXT".
+
+      *>   DEFINE ALL FLAGS, COUNTERS, AND SUBSCRIPTS
+       01  FLAGS-AND-CONTERS.
+           05  WS-EOF-STUDENT           PIC A(1) VALUE "N".
+           05  WS-EOF-PROGRAM           PIC A(1) VALUE "N".
+           05  PROGRAM-FOUND-FLG        PIC A(1) VALUE "N".
+           05  STUFILE-READ-COUNTER     PIC 9(2) VALUE ZERO.
+           05  STUDENT-WRITE-COUNTER    PIC 9(2) VALUE ZERO.
+           05  SUB-1                    PIC 9(2) VALUE 1.
+           05  SUB-2                    PIC 9(2) VALUE 1.
+
+       PROCEDURE DIVISION.
+      *>   MAIN PROGRAM START HERE
+       100-CREATE-STUDENT-REPORTS.
+           PERFORM 201-INITIALIZE-STU-FILE.
+           PERFORM 202-PROCESS-STUDENT-REPORT
+               UNTIL WS-EOF-STUDENT = "Y".
+           PERFORM 203-TERMINATE-ALL-FILES.
+           STOP RUN.
+
+       201-INITIALIZE-STU-FILE.
+           PERFORM 301-OPEN-FILES-RTN.
+           PERFORM 302-LOAD-TABLE-RTN
+               VARYING SUB-1 FROM 1 BY 1
+                   UNTIL SUB-1 > 20 OR WS-EOF-PROGRAM = "Y".
+           PERFORM 303-WRITE-REPORT-HEADER.
+           PERFORM 304-READ-STUDENT-RECORD.
+
+       202-PROCESS-STUDENT-REPORT.
+           MOVE "N" TO PROGRAM-FOUND-FLG.
+           PERFORM 305-SEARCH-PROGRAM-RTN
+               VARYING SUB-2 FROM 1 BY 1
+                   UNTIL PROGRAM-FOUND-FLG = "Y" OR SUB-2 > 20.
+           PERFORM 306-CAL-AVG-RTN.
+           PERFORM 307-WRITE-STUFILE-REPORT-OUT.
+           PERFORM 304-READ-STUDENT-RECORD.
+
+       203-TERMINATE-ALL-FILES.
+           PERFORM 308-DISPLAY-COUNTER-RECORD.
+           PERFORM 309-CLOSE-FILE.
+
+       301-OPEN-FILES-RTN.
+           OPEN INPUT PROGRAM-FILE.
+           OPEN INPUT INDEXED-STU-FILE.
+           OPEN OUTPUT STUDENT-REPORT-OUT.
+
+       302-LOAD-TABLE-RTN.
+           READ PROGRAM-FILE
+                 AT END MOVE "Y" TO WS-EOF-PROGRAM
+                 ADD 1 TO SUB-1
+                 NOT AT END
+                 MOVE PROGRAM-CODE TO TABLE-PROGRAM-CODE(SUB-1)
+                 MOVE PROGRAM-NAME TO TABLE-PROGRAM-NAME(SUB-1).
+
+       303-WRITE-REPORT-HEADER.
+           WRITE STUFILE-RECORD-OUT FROM STUDENT-REC-HDR.
+           DISPLAY STUDENT-REC-HDR.
+
+       304-READ-STUDENT-RECORD.
+           READ INDEXED-STU-FILE
+               NOT AT END
+                   ADD 1 TO STUFILE-READ-COUNTER
+               AT END MOVE "Y" TO WS-EOF-STUDENT
+           END-READ.
+
+       305-SEARCH-PROGRAM-RTN.
+               IF PROGRAM-OF-STUDY = TABLE-PROGRAM-CODE(SUB-2)
+                   MOVE TABLE-PROGRAM-NAME(SUB-2) TO WS-PROGRAM-NAME
+                   MOVE "Y" TO PROGRAM-FOUND-FLG
+               END-IF.
+
+       306-CAL-AVG-RTN.
+           CALL "CALCULATE-AVG"
+             USING WS-STUDENT-AVG,
+                   COURSE-AVERAGE1,
+                   COURSE-AVERAGE2,
+                   COURSE-AVERAGE3,
+                   COURSE-AVERAGE4,
+                   COURSE-AVERAGE5.
+
+       307-WRITE-STUFILE-REPORT-OUT.
+           MOVE STUDENT-NAME TO WS-STUDENT-NAME.
+           MOVE TUITION-OWED TO WS-TUITION-OWED.
+           WRITE STUFILE-RECORD-OUT FROM WS-STUDENT-RECORD.
+           ADD 1 TO STUDENT-WRITE-COUNTER.
+           DISPLAY STUFILE-RECORD-OUT.
+
+       308-DISPLAY-COUNTER-RECORD.
+           DISPLAY "READ STUDENT FILE : "
+               STUFILE-READ-COUNTER " TIMES.".
+           DISPLAY "WRITE STUDENT RECORDS: "
+               STUDENT-WRITE-COUNTER " TIMES.".
+
+       309-CLOSE-FILE.
+           CLOSE PROGRAM-FILE.
+           CLOSE INDEXED-STU-FILE.
+           CLOSE STUDENT-REPORT-OUT.
+
+       END PROGRAM PROJECT3-3RD-PROGRAM.
